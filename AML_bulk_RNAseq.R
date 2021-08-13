@@ -51,7 +51,7 @@ data_melt <- melt(a, id.vars = c("sample type"))
 data_melt <- data_melt %>% filter(variable %in% c("CD33", "IL3RA", "CD70")) %>% droplevels
 all.equal(c(rownames(data.anno), rownames(data.anno)), c(data_melt$variable))
 str(data_melt)
-
+data_melt
 
 table(data.anno %>% filter(Indication_short == "AML") %>% select(Sample_type))
 table(data.anno %>% filter(Sample_type == "normal control") %>% select(Indication_short))
@@ -105,4 +105,5 @@ table(data.anno$mutation_status)
 data.anno$mutation_status <- to_vec(for(i in (1:dim(data.anno)[1])) if (is.na(data.anno$mutation_status1[i])==FALSE) return_mutation(data.anno$mutation_status1[i],
                                                                                                                                      data.anno$mutation_status2[i]) else "no info")
 data.anno
+as.data.frame(table(data.anno$mutation_status))
 table(data.anno$mutation_status)

@@ -7,22 +7,6 @@
 #    http://shiny.rstudio.com/
 #
 
-#check library dependencies 
-
-
-
-
-list.of.packages <- c("shiny","ggplot2","ggpubr",
-                      "dplyr","reshape2","tidyverse","comprehenr","ggrepel",
-                      "RColorBrewer")
-
-#checking missing packages from list
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-
-#install missing ones
-if(length(new.packages)) install.packages(new.packages, dependencies = TRUE)
-
-
 library(shiny)
 library(ggplot2)
 library(ggpubr)
@@ -34,16 +18,24 @@ library(ggrepel)
 library(RColorBrewer)
 
 
-
 project ="Rshiny-AML"
 Sys.setenv(language="en")
+if (project == "Rshiny-AML"){
+    working_dir<-"C:/Users/jtao/work_dir/Rshiny/test_with_AML_data"
+    setwd(working_dir)
+}
+data.anno <-  read.table( "C:/Users/jtao/work_dir/RShiny/test_with_AML_data/data/AML_GPL570_annotation_subset.txt",  
+                          header = TRUE, sep = "\t",check.names = FALSE, row.names = 1)
+data <- read.table("C:/Users/jtao/work_dir/RShiny/test_with_AML_data/data/AML_GPL570_matrix_subset.txt", 
+                   header = TRUE, sep = "\t", check.names = FALSE, row.names = 1)
 
-data.anno <-  read.table( "./data/AML_GPL570_annotation_subset.txt",  
-                                                    header = TRUE, sep = "\t",check.names = FALSE, row.names = 1)
+AML_id <- rownames(data.anno[data.anno$Indication_short %in% c("healthy", "AML"), ])
 
-data <- read.table("./data/AML_GPL570_matrix_subset.txt",
-                                             header = TRUE, sep = "\t", check.names = FALSE, row.names = 1)
+data.anno <- filter(data.anno, Indication_short %in% c("AML", "healthy"))
 
+data <- data[, colnames(data) %in% AML_id]
+# length(AML_id)
+# table(data.anno$Indication_short)
 data.anno$sample_ID <- rownames(data.anno) 
 data.anno <- data.anno[order(factor(data.anno$sample_ID, levels = colnames(data))), ]
 data.gene <- rownames(data)
@@ -324,5 +316,5 @@ options(shiny.reactlog=TRUE)
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-runApp("C:/Users/jtao/work_dir/RShiny/test_with_AML_data/app.R")
+# runApp("test_trial", display.mode = "showcase")
 
