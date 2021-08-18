@@ -20,7 +20,7 @@ list.of.packages <- c("shiny","ggplot2","ggpubr",
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 
 #install missing ones
-if(length(new.packages)) install.packages(new.packages, dependencies = TRUE)
+# if(length(new.packages)) install.packages(new.packages, dependencies = TRUE)
 
 
 library(shiny)
@@ -38,17 +38,17 @@ library(RColorBrewer)
 project ="Rshiny-AML"
 Sys.setenv(language="en")
 
-data.anno <-  read.table( "./data/AML_GPL570_annotation_subset.txt",  
+data.anno <-  read.table( "./data/AML_GPL570_annotation_AML_healthy.txt",  
                                                     header = TRUE, sep = "\t",check.names = FALSE, row.names = 1)
 
-data <- read.table("./data/AML_GPL570_matrix_subset.txt",
+data <- read.table("./data/AML_GPL570_matrix_AML_healthy.txt",
                                              header = TRUE, sep = "\t", check.names = FALSE, row.names = 1)
 
 data.anno$sample_ID <- rownames(data.anno) 
 data.anno <- data.anno[order(factor(data.anno$sample_ID, levels = colnames(data))), ]
 data.gene <- rownames(data)
 all.equal(colnames(data), rownames(data.anno))
-
+data.anno[data.anno$FAB_score == "", ] <-"no information" 
 
 mutation_cate <- grep("mutation", colnames(data.anno), value =TRUE)
 return_mutation<- function(x1, x2){
@@ -102,7 +102,7 @@ ui <- fluidPage(
     # Application title
     titlePanel(
         p(
-            h1("Acute Myloid lymphoma data visualization"),
+          h1("Acute Myeloid Leukemia data visualization"),
           h3("Data description:", style = "font-family: 'arial'; font-size: 20px"),
           h3("Microarray Bulk RNA-Seq data of bone marrow & PBMCs samples from 682 AML patients and 74 healthy donors",
              style = "font-family: 'arial'; font-size: 20px")
@@ -147,33 +147,20 @@ ui <- fluidPage(
     
         ),
 
-        # Show a plot of the generated distribution
-        # mainPanel(
-        #     h1("", align="center",
-        #        style = "font-family: 'times'; font-si16pt"),
-        #     fluidRow(
-        #         plotOutput("TargetExpre",
-        #                    width = "95%",
-        #                    height = "400px"
-        #                    )
-        #     ),
-        #     fluidRow(
-        #         plotOutput("Distribution",
-        #                    width = "90%",
-        #                    height = "300px")
-        #     )
-        #    
-        # )
+  
         mainPanel(
           tabsetPanel(
-            tabPanel("Gene Expression", br(), plotOutput("TargetExpre",
-                                                         width = "100%",
-                                                        height = "400px")),
+            
             
             tabPanel("Sample Distribution",  plotOutput("Distribution",
                                                         width = "90%",
                                                         height = "420px"
-                                                        ))
+            )),
+            tabPanel("Gene Expression", br(), plotOutput("TargetExpre",
+                                                         width = "100%",
+                                                        height = "400px"))
+            
+            
           )
             
             
@@ -203,6 +190,13 @@ server <-function(input, output, session) {
     
     # browser()
     data_box <- reactive({
+        if (length(input$genes)!=0 ){
+          inputgenes = input$genes
+          
+        }else{
+          inputgenes = c("CD70")
+        }
+      
         if (input$sample_origin!="all"){
             data.anno <- filter(data.anno, Sample_tissue_of_origin == input$sample_origin)
             data <- data[,rownames(data.anno)]
@@ -211,13 +205,13 @@ server <-function(input, output, session) {
             data <- data
         }
         
-        data_gene <- as.data.frame(t(data[rownames(data) %in% input$genes, ]))
+        data_gene <- as.data.frame(t(data[rownames(data) %in% inputgenes, ]))
         
         if(input$metadata == "tumor type"){
             data_gene_type <- data_gene %>% add_column(sample_type = data.anno$Sample_type)
             data_box <- data_gene_type %>% 
                     melt(id.vars = c("sample_type")) %>%
-                    filter(variable %in% input$genes) %>% droplevels()
+                    filter(variable %in% inputgenes) %>% droplevels()
             color <- "sample_type"}
         
         else if(input$metadata == "FAB score"){
@@ -226,7 +220,7 @@ server <-function(input, output, session) {
             data_gene_type <- data_gene%>% add_column(FAB_score = data.anno$FAB_score)
             data_box <- data_gene_type %>% 
                     melt(id.vars = c("FAB_score")) %>%
-                    filter(variable %in% input$genes) %>% droplevels()
+                    filter(variable %in% inputgenes) %>% droplevels()
             color <- "FAB_score"
             
         }
@@ -235,21 +229,24 @@ server <-function(input, output, session) {
             data_gene_type <- data_gene %>% add_column(mutation = data.anno$mutation_status)
             data_box <- data_gene_type %>% 
                     melt(id.vars = c("mutation")) %>%
-                    filter(variable %in% input$genes) %>% droplevels()
+                    filter(variable %in% inputgenes) %>% droplevels()
             color <- "mutation"
             
         }
-        return (list("databox"=data_box, "color" = color))
+        return (list("databox"=data_box, "color" = color,
+                     "genes" = inputgenes))
     })
     
     
-    
+    #STOPIFNOT
     
     
     output$TargetExpre<- renderPlot({
         
+        # stopifnot(data_box()$databox)
         data_box<- data_box()$databox
         color <- data_box()$color
+        
         
         data_box <- data_box %>%
           mutate(variable = str_replace_all(variable, "_", " "))
@@ -259,7 +256,7 @@ server <-function(input, output, session) {
         ggplot(data_box, aes_string(x = "variable",
                   y = "value", fill = color)) +
             geom_boxplot() +
-            scale_fill_brewer(palette="RdBu")+
+            scale_color_brewer(palette="Set3")+
         stat_compare_means(
             # group.by = color,
             aes_string(group = color),
@@ -279,9 +276,9 @@ server <-function(input, output, session) {
     output$Distribution<- renderPlot({
       
         var_width = 5
-        c
+        
     
-        data_box<- data_box()$databox %>% filter(variable == input$genes[1])
+        data_box<- data_box()$databox %>% filter(variable == data_box()$genes[1])
         category <- data_box()$color
         data_bar <- as.data.frame(table(data_box[category]))
         names(data_bar) <- c("Category", "Sample Numbers")
@@ -299,7 +296,7 @@ server <-function(input, output, session) {
           mutate(Category = str_replace_all(Category, "_", " "))
         barplot <- ggbarplot(data_bar,x = "Category", y = "Sample Numbers",
                   fill = "Category", palette = brewer.pal(n = 8
-                                                          , name = "RdBu"),
+                                                          , name = "Set3"),
                   label = TRUE, legend = "right")+
             theme(panel.grid.major = element_blank(),
                   panel.grid.minor = element_blank(),
@@ -324,5 +321,5 @@ options(shiny.reactlog=TRUE)
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-runApp("C:/Users/jtao/work_dir/RShiny/test_with_AML_data/app.R")
+# runApp("C:/Users/jtao/work_dir/RShiny/test_with_AML_data/app.R")
 
